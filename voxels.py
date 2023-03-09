@@ -5,7 +5,7 @@ import cv2 as cv
 import os
 
 prevImg = [None,None,None,None]
-FrameNr = 0
+FrameNr = 0                             #goes in steps of 12 frames each update
 
 #impt,c to voxelcoord lookup table:
 imgp_Cam2VoxelTable = defaultdict(list)
@@ -101,7 +101,7 @@ def initilizeVoxels():
     indices = np.column_stack((indices[0], indices[2], -1 * indices[1]))
 
     # update frame nr:
-    FrameNr += 1
+    FrameNr += 12
 
     return indices - np.array((34,0,-34))
 
@@ -162,7 +162,7 @@ def updateVoxels():
     indices = np.where((voxelForgroundTable == allOn).all(axis=3))
     indices = np.column_stack((indices[0], indices[2], -1 * indices[1]))
     # updating frame nr:
-    FrameNr += 1
+    FrameNr += 12
 
     return indices - np.array((34,0,-34))
 
