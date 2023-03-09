@@ -20,12 +20,12 @@ def generate_grid(width, depth):
 
 def set_voxel_positions(width, height, depth):
     data = v.initilizeVoxels()
-    colors = np.zeros_like(data)
+    colors = np.full_like(data,255)
     return data, colors
 
 def set_voxel_positions_update():
     data = v.updateVoxels()
-    colors = np.zeros_like(data)
+    colors = np.full_like(data,255)
     return data,colors
 
 
