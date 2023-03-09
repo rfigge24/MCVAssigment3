@@ -1,60 +1,133 @@
 import cv2 as cv
+import os
 import numpy as np
-import glob
 
-def drawAxis(img, corners, axisImgpts):
+def trainBackgroundModel(bgSubtractor, bgVidPath):
     """
-    This function draws the axis lines and the cube onto a given image.
-    The transformed coordinates of the outer corners of the axis lines are used here.
+    This function trains a BackgroundSubtractorMOG2 model on all frames of a background video.
+    It does some preprocessing by applying a gaussian blur on the image to reduce noise.
     """
-    # drawing the axis:
-    corner = tuple([0,0])
-    print(axisImgpts[4])
-    img = cv.line(img, tuple(axisImgpts[0].ravel().astype(int)), tuple(axisImgpts[1].ravel().astype(int)), (255,0,0), 2)
-    img = cv.line(img, tuple(axisImgpts[0].ravel().astype(int)), tuple(axisImgpts[2].ravel().astype(int)), (0,255,0), 2)
-    img = cv.line(img, tuple(axisImgpts[0].ravel().astype(int)), tuple(axisImgpts[3].ravel().astype(int)), (0,0,255), 2)
-    img = cv.line(img, tuple(axisImgpts[4].ravel().astype(int)), tuple(axisImgpts[1].ravel().astype(int)), (0,0,255), 2)
-    img = cv.line(img, tuple(axisImgpts[4].ravel().astype(int)), tuple(axisImgpts[2].ravel().astype(int)), (0,0,255), 2)
+    
+    vid = cv.VideoCapture(bgVidPath)
+    nrOfFrames = vid.get(cv.CAP_PROP_FRAME_COUNT)
 
-    return img
+    for i in range(0,int(nrOfFrames)):
+        vid.set(cv.CAP_PROP_POS_FRAMES, i)
+        succes, img = vid.read()
+        if succes:
+            #preprossesing with a gaussian blur:
+            img = cv.GaussianBlur(img,(3,3), 0)
+            #training the background model:
+            bgSubtractor.apply(img, None, -1)
 
 
-def addAxis2frame(img, mtx, dist, rvecs, tvecs, corners):
+
+def testBackgroundModel(bgSubtractor, fgVidPath, dilation):
     """
-    This function takes care of the calculation part of adding the cube and axis lines to a frame.
-    The camera rotation and transformation is calculated using the 3D obj points and 2d img points of the Chessboard.
-    Then the 3D points of the axis lines and the cube are transformed using these parameters.
-    It then calls the drawAxisAndCube function with these newly obtained 2d points of the cube and axis points.
+    This function is to test a trained background model on the frames of the forground video.
+    For trying different values of thresholds and dilation this was very handy.
+
+    Same as training the backgroundmodel we apply a gaussian blur before subtracting the background.
+    after the subtraction we find the contour of the man with findcontours.
+    and we draw this contour only on a all black image of the same size as the origional image.
+    If needed there are "dilation" iterations of dilation performed on the final image.
     """
 
-    # 3D points of the axis line-ends:
-    axis = np.float32([[-700,-700,0],[2710,-700,0], [-700,4010,0], [-700,-700,2010], [2710,4010,0]]).reshape(-1,3)
+    vid = cv.VideoCapture(fgVidPath)
+    nrOfFrames = vid.get(cv.CAP_PROP_FRAME_COUNT)
 
-    # project 3D points to image plane:
-    axisImgpts, jac = cv.projectPoints(axis, rvecs, tvecs, mtx, dist)
+    for i in range(0,int(nrOfFrames)):
+        vid.set(cv.CAP_PROP_POS_FRAMES, i)
+        succes, img = vid.read()
+        if succes:
+            #preprossessing with a gaussian blur:
+            blur = cv.GaussianBlur(img,(3,3), 0)
+            #subtracting the background:
+            fgImg = bgSubtractor.apply(blur, None, 0)
+            
+            #finding the contour:
+            #contours, hierarchy  = cv.findContours(fgImg, cv.RETR_CCOMP, cv.CHAIN_APPROX_SIMPLE)
+            #list = [len(x) for x in contours]
+            #indexes = np.argsort(list,0)
 
-    img = drawAxis(img, corners, axisImgpts)
+            #testimg = np.zeros_like(fgImg)
+            #fgImg = cv.drawContours(testimg, contours, indexes[-1] , (255,255,255), -1)
 
-    return img
+            kernel = np.ones((3,3),np.uint8) 
+            fgImg = cv.dilate(fgImg,kernel, iterations = dilation)
 
-def test():
-    for c in range(1,5):
-        # get the camera parameters from the specific camera:
-        path = f'data/cam{c}/config.xml'
-        r = cv.FileStorage(path, cv.FileStorage_READ)
-        tvecs = r.getNode('CameraTranslationVecs').mat()
-        rvecs = r.getNode('CameraRotationVecs').mat()
-        mtx = r.getNode('CameraIntrinsicMatrix').mat()
-        dist = r.getNode('DistortionCoeffs').mat()
-        camfolder = 'data/cam' + str(c) + '/'
-        extrinsicImgNames = glob.glob(camfolder + 'test/*.jpg')
 
-        img = cv.imread(extrinsicImgNames[0])
 
-        img = addAxis2frame(img, mtx,dist,rvecs,tvecs, None)
-        cv.imshow('img', img)
-        cv.waitKey(-1)
+            cv.imshow('bgImg', fgImg)
+            cv.waitKey(10)
 
-test()
+def subtractBackground(img, bgSubtractor, dilation):
+    """
+    This function performs the background subtranction on a given image with the given trained background model.
+    It returns the forground mask.
+    """
+
+    #preprossessing with a gaussian blur:
+    blur = cv.GaussianBlur(img,(3,3), 0)
+    #subtracting the background:
+    fgImg = bgSubtractor.apply(blur, None, 0)
+            
+    #finding the contour:
+    #contours, hierarchy  = cv.findContours(fgImg, cv.RETR_CCOMP, cv.CHAIN_APPROX_SIMPLE)
+    #list = [len(x) for x in contours]
+    #indexes = np.argsort(list,0)
+
+    #testimg = np.zeros_like(fgImg)
+    #fgImg = cv.drawContours(testimg, contours, indexes[-1] , (255,255,255), -1)
+
+    kernel = np.ones((3,3),np.uint8) 
+    fgImg = cv.dilate(fgImg,kernel, iterations = dilation)
+
+    return fgImg
+
+
+
+vidpath1 = os.path.abspath('data/cam1/background.avi')
+model1 = cv.createBackgroundSubtractorMOG2(150, 100, True)
+model1.setShadowValue(0)
+model1.setShadowThreshold(0.6)
+
+vidpath2 = os.path.abspath('data/cam2/background.avi')
+model2 = cv.createBackgroundSubtractorMOG2(150, 100, True)
+model2.setShadowValue(0)
+model2.setShadowThreshold(0.6)
+
+vidpath3 = os.path.abspath('data/cam3/background.avi')
+model3 = cv.createBackgroundSubtractorMOG2(150, 100, True)
+model3.setShadowValue(0)
+model3.setShadowThreshold(0.6)
+
+vidpath4 = os.path.abspath('data/cam4/background.avi')
+model4 = cv.createBackgroundSubtractorMOG2(150, 100, True)
+model4.setShadowValue(0)
+model4.setShadowThreshold(0.6)
+
+
+#------------------------------------Training the background models--------------------------------------
+modelList = [model1, model2, model3, model4]
+vidpathList = [vidpath1,vidpath2,vidpath3,vidpath4]
+
+
+#threshold parameters and dilation parameter for all camera's:
+    #cam 1 = 100, 0.5, no dilation
+    #cam 2 = 100, 0.42, with 2 iterations of dilation
+    #cam 3 = 100, 0.5, no dilation
+    #cam 4 = 100, 0.5, no dilation
+
+print("please wait while the 4 background models get trained!")
+for  mod,vidpath in zip(modelList,vidpathList):
+    trainBackgroundModel(mod,vidpath)
+    print("training model done")
+
+#testBackgroundModel(model1, os.path.abspath('data/cam1/video.avi'), 0)
+#testBackgroundModel(model2, os.path.abspath('data/cam2/video.avi'), 0)
+#testBackgroundModel(model3, os.path.abspath('data/cam3/video.avi'), 0)
+testBackgroundModel(model4, os.path.abspath('data/cam4/video.avi'), 0)
+#g = subtractBackground(img, model2, 2)
 
 
