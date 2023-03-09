@@ -20,13 +20,13 @@
   <cols>1</cols>
   <dt>d</dt>
   <data>
-    1.7086995920010397e+00 -9.0602384609756370e-01
-    6.5868636898308042e-01</data></CameraRotationVecs>
+    1.7069741181990614e+00 -9.1705866843107842e-01
+    6.7900297217349925e-01</data></CameraRotationVecs>
 <CameraTranslationVecs type_id="opencv-matrix">
   <rows>3</rows>
   <cols>1</cols>
   <dt>d</dt>
   <data>
-    -2.7378766150974474e+02 1.0290109777474784e+03
-    3.4097936084344292e+03</data></CameraTranslationVecs>
+    -2.6825338686758624e+02 1.0232245386718166e+03
+    3.4184971842198452e+03</data></CameraTranslationVecs>
 </opencv_storage>
