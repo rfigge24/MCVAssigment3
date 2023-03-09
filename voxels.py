@@ -75,7 +75,6 @@ def initilizeVoxels():
         succes, img = vid.read()
 
         if succes:
-            dilation = 2 if c == 2 else 0
             model = None
             if c == 1:
                 model = bs.model1
@@ -86,7 +85,7 @@ def initilizeVoxels():
             elif c==4:
                 model = bs.model4
 
-            img = bs.subtractBackground(img, model, dilation)
+            img = bs.subtractBackground(img, model, 0)
             prevImg[c-1] = img
 
             for x in range(img.shape[1]):
@@ -104,7 +103,7 @@ def initilizeVoxels():
     # update frame nr:
     FrameNr += 1
 
-    return indices
+    return indices - np.array((34,0,-34))
 
 
 def updateVoxels():
@@ -128,7 +127,6 @@ def updateVoxels():
         succes, img = vid.read()
 
         if succes:
-            dilation = 2 if c == 2 else 0
             model = None
             if c == 1:
                 model = bs.model1
@@ -139,7 +137,7 @@ def updateVoxels():
             elif c==4:
                 model = bs.model4
 
-            currentImg = bs.subtractBackground(img, model, dilation)
+            currentImg = bs.subtractBackground(img, model, 0)
             
             # getting the pixels that have changed:
             changes = cv.bitwise_xor(prevImg[c-1],currentImg)
@@ -166,10 +164,11 @@ def updateVoxels():
     # updating frame nr:
     FrameNr += 1
 
-    return indices
+    return indices - np.array((34,0,-34))
 
 
 
 #------------------------------Construction of the Lookup table when script is ran or imported:----------------------------------
 buildVoxelLookupTable()
 #--------------------------------------------------------------------------------------------------------------------------------
+#readLookupTable()
