@@ -3,6 +3,7 @@ from collections import defaultdict
 import bgSubstraction as bs
 import cv2 as cv
 import os
+import cluster
 
 prevImg = [None,None,None,None]
 FrameNr = 0                             #goes in steps of 12 frames each update
@@ -100,10 +101,16 @@ def initilizeVoxels():
     indices = np.where((voxelForgroundTable == allOn).all(axis=3))
     indices = np.column_stack((indices[0], indices[2], -1 * indices[1]))
 
+    #correcting the coordinate offsets:
+    indices = indices - np.array((34,0,-34))
+
+    #clustering vis:
+    cluster.clusterVoxels(np.float32(indices),4)
+
     # update frame nr:
     FrameNr += 12
 
-    return indices - np.array((34,0,-34))
+    return indices
 
 
 def updateVoxels():
@@ -171,4 +178,5 @@ def updateVoxels():
 #------------------------------Construction of the Lookup table when script is ran or imported:----------------------------------
 buildVoxelLookupTable()
 #--------------------------------------------------------------------------------------------------------------------------------
+#initilizeVoxels()
 #readLookupTable()
