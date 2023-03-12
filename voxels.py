@@ -4,12 +4,16 @@ import bgSubstraction as bs
 import cv2 as cv
 import os
 import cluster
+import colorModel as cm
 
 prevImg = [None,None,None,None]
 FrameNr = 0                             #goes in steps of 12 frames each update
 
-#impt,c to voxelcoord lookup table:
+#imgpoint,c to voxelcoord lookup table:
 imgp_Cam2VoxelTable = defaultdict(list)
+#Voxpt, c to pixel lookup table:
+voxp_Cam2PixelTable = dict()
+
 # contains for each voxel if it is forground for each cam:
 voxelForgroundTable = np.zeros((170,235,100,4))                                                     
 
@@ -21,6 +25,7 @@ def buildVoxelLookupTable():
     """
 
     global imgp_Cam2VoxelTable
+    global voxp_Cam2PixelTable
 
     print("please wait while the voxel lookuptable is generated!")
 
@@ -48,8 +53,10 @@ def buildVoxelLookupTable():
         Imgpts = np.int32(np.rint(Imgpts.reshape((-1,2))))
         # add to table:
         for imgCord,voxCord in zip(Imgpts,voxelCoords):
-            x,y =imgCord
-            imgp_Cam2VoxelTable[(x,y,c)].append(voxCord)
+            imgX,imgY =imgCord
+            voxX,voxY,voxZ = voxCord
+            imgp_Cam2VoxelTable[(imgX,imgY,c)].append(voxCord)
+            voxp_Cam2PixelTable[(voxX,voxY,voxZ,c)] = imgCord
 
     print("generation done!")
 
@@ -72,7 +79,7 @@ def initilizeVoxels():
     for c in range(1,5):
         path = os.path.abspath(f'data/cam{c}/video.avi')
         vid = cv.VideoCapture(path)
-        vid.set(cv.CAP_PROP_POS_FRAMES, 0)
+        vid.set(cv.CAP_PROP_POS_FRAMES, FrameNr)
         succes, img = vid.read()
 
         if succes:
@@ -104,8 +111,13 @@ def initilizeVoxels():
     #correcting the coordinate offsets:
     indices = indices - np.array((34,0,-34))
 
-    #clustering vis:
-    cluster.clusterVoxels(np.float32(indices),4)
+    #cluster the voxels:
+    voxelLabels, centroids = cluster.clusterVoxels(np.float32(indices), 4)
+
+    #create list of voxel coords lists corresponding to the cluster they belong to:
+    voxels0, voxels1, voxels2, voxels3 = splitClusteredVoxelCoords(indices,voxelLabels, 4)
+
+    #TODO: per cluser aan voxels een color histogram maken, dan per cluster een persoon toewijzen door de offline color models te gebruiken.
 
     # update frame nr:
     FrameNr += 12
@@ -171,12 +183,37 @@ def updateVoxels():
     # updating frame nr:
     FrameNr += 12
 
-    return indices - np.array((34,0,-34))
+    #correcting the coordinate offsets:
+    indices = indices - np.array((34,0,-34))
+
+    return indices
+
+#New colormodel code:
+
+def splitClusteredVoxelCoords(voxelCords, voxelLabels, nrOfClusters):
+    ClusterLists = []
+    for i in range(nrOfClusters):
+        ClusterLists.append([])
+    for voxC, label in zip(voxelCords,voxelLabels.ravel()):
+        ClusterLists[label].append(voxC)
+    
+    return ClusterLists
+
+def getUniqueImageCoords(voxels, camNr):
+    global voxp_Cam2PixelTable
+
+    imageCoords = set()
+    for voxX,voxY,voxZ in voxels:
+        imageCoords.add(voxp_Cam2PixelTable[(voxX,voxY,voxZ,camNr)])
+
+    return imageCoords
+
+
 
 
 
 #------------------------------Construction of the Lookup table when script is ran or imported:----------------------------------
 buildVoxelLookupTable()
 #--------------------------------------------------------------------------------------------------------------------------------
-#initilizeVoxels()
-#readLookupTable()
+initilizeVoxels()
+

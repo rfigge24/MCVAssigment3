@@ -5,7 +5,6 @@ import matplotlib.pyplot as plt
 def clusterVoxels(voxels,nrOfClusters):
     #getting rid of the height axis:
     voxels2d = voxels[:,[0,2]]
-    print(voxels2d)
     # the convergence criteria
     criteria = (cv.TERM_CRITERIA_EPS + cv.TERM_CRITERIA_MAX_ITER, 10, 1.0)
     # Set flags (Just to avoid line break in the code)
@@ -13,7 +12,27 @@ def clusterVoxels(voxels,nrOfClusters):
     # Apply KMeans
     ret,voxelLabels,centroids = cv.kmeans(voxels2d,nrOfClusters,None,criteria,10,flags)
 
-    # visualization:
+    return  voxelLabels,centroids
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+"""
+# visualization:
     A = voxels2d[voxelLabels.ravel()==0]
     B = voxels2d[voxelLabels.ravel()==1]
     C = voxels2d[voxelLabels.ravel()==2]
@@ -29,5 +48,4 @@ def clusterVoxels(voxels,nrOfClusters):
     plt.scatter(centroids[:,0],centroids[:,1],s = 80,c = 'y', marker = 's')
     plt.xlabel('Height'),plt.ylabel('Weight')
     plt.show()
-
-    return  voxelLabels,centroids
+"""
