@@ -9,8 +9,9 @@ def makeColorHistogram(imgCords,frame):
     hsvImg = cv.cvtColor(frame, cv.COLOR_BGR2HSV)
     #fill the bins:
     for imgX,imgY in imgCords:
-        color = hsvImg[imgY,imgX]
-        histogram[math.floor(color[0]/5)] += 1   
+        if imgX < hsvImg.shape[1] and imgY < hsvImg.shape[0]:
+            color = hsvImg[imgY,imgX]
+            histogram[math.floor(color[0]/5)] += 1   
     #normalizing the histogram:
     totalsum = np.sum(histogram)
     histogram = histogram / totalsum

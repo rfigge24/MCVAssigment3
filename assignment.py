@@ -23,6 +23,7 @@ def set_voxel_positions(width, height, depth):
     return v.initilizeVoxels()
 
 def set_voxel_positions_update():
+    print(v.FrameNr)
     return v.updateVoxels()
 
 

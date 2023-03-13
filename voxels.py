@@ -10,8 +10,9 @@ prevImg = [None,None,None,None]
 FrameNr = 0
 
 personCenters = [[],[],[],[]]                                                                       #TODO: save the clustercenters that correspond to each person in this array
-personColorModels = [None,None,None,None]                                                           #TODO: load the offline person colormodels into this list for comparison use
-currentColorModelFrame = None                                                                       #TODO: save the current frame of the camera where the color model needs to be made of
+personColorModelstwoviews = [[None,None,None,None],[None,None,None,None]]                                                          #TODO: load the offline person colormodels into this list for comparison use
+currentColorModelFrame1 = None         
+currentColorModelFrame2 = None                                                              
 
 
 
@@ -77,9 +78,10 @@ def initilizeVoxels(offline = False):                          #in offline mode 
     global FrameNr
     global prevImg
     global voxelForgroundTable
+    global currentColorModelFrame1
+    global currentColorModelFrame2
     #reset framenr and voxel forground table:
     voxelForgroundTable = np.zeros((170,235,100,4))   
-    FrameNr = 0
 
     for c in range(1,5):
         path = os.path.abspath(f'data/cam{c}/video.avi')
@@ -88,7 +90,9 @@ def initilizeVoxels(offline = False):                          #in offline mode 
         succes, img = vid.read()
 #-------------------------------------------------------------------------------------------------------------
         if succes and c == 2:
-            currentColorModelFrame = img.copy()
+            currentColorModelFrame1 = img.copy()
+        if succes and c == 3:
+            currentColorModelFrame2 = img.copy()
 #---------------------------------------------------------------------------------------------------------------
         if succes:
             model = None
@@ -120,24 +124,30 @@ def initilizeVoxels(offline = False):                          #in offline mode 
     indices = indices - np.array((34,0,-34))
 #--------------------------------------------------------------------------------------------------------------------------
     #cluster the voxels:
+    #cv.imshow('cam2', currentColorModelFrame1)
+    #cv.imshow('cam3', currentColorModelFrame2)
     voxelLabels, centroids = cluster.clusterVoxels(np.float32(indices), 4)
 
     #create list of voxel coords lists corresponding to the cluster they belong to:
     clusteredVoxelLists = splitClusteredVoxelCoords(indices,voxelLabels, 4)
 
     #make a colorHistogram for each cluster of voxels looking from camera 2:
-    clusterHistograms = [None,None,None,None]
-    for i,clusvoxlist in enumerate(clusteredVoxelLists):
-        uniqueImageCords = getUniqueImageCords(clusvoxlist, 2)
-        hist = cm.makeColorHistogram(uniqueImageCords, currentColorModelFrame)
-        clusterHistograms[i] = hist
+    clusterHistogramstwoviews = [[None,None,None,None],[None,None,None,None]]
+    for v in range(2):
+        for i,clusvoxlist in enumerate(clusteredVoxelLists):
+            uniqueImageCords = getUniqueImageCords(clusvoxlist, v + 2, 30)
+            if v == 0:
+                hist = cm.makeColorHistogram(uniqueImageCords, currentColorModelFrame1)
+            if v == 1: 
+                hist = cm.makeColorHistogram(uniqueImageCords, currentColorModelFrame2)
+            clusterHistogramstwoviews[v][i] = hist
     
     #if offline mode return the histograms:
     if offline:
-        return clusterHistograms
+        return clusterHistogramstwoviews
 
     #compare the clusterHistograms to the offline ones and assign each cluster to a single person:
-    personLabels = assignPersons2Clusters(clusterHistograms)
+    personLabels = assignPersons2Clusters(clusterHistogramstwoviews)
 
     #add the the cluster center to that persons list in personCenters
     for centroid, pers in zip(centroids, personLabels):
@@ -158,7 +168,7 @@ def initilizeVoxels(offline = False):                          #in offline mode 
 
 #------------------------------------------------------------------------------------------------------------------------------
     # update frame nr:
-    FrameNr += 12
+    FrameNr += 5
 
     return voxelList2, colorList2
 
@@ -176,6 +186,8 @@ def updateVoxels():
     global FrameNr
     global prevImg
     global voxelForgroundTable
+    global currentColorModelFrame1
+    global currentColorModelFrame2
 
     for c in range(1,5):
         path = os.path.abspath(f'data/cam{c}/video.avi')
@@ -185,7 +197,9 @@ def updateVoxels():
 
         #-------------------------------------------------------------------------------------------------------------
         if succes and c == 2:
-            currentColorModelFrame = img.copy()
+            currentColorModelFrame1 = img.copy()
+        if succes and c == 3:
+            currentColorModelFrame2 = img.copy()
         #---------------------------------------------------------------------------------------------------------------
 
         if succes:
@@ -225,7 +239,7 @@ def updateVoxels():
     indices = np.where((voxelForgroundTable == allOn).all(axis=3))
     indices = np.column_stack((indices[0], indices[2], -1 * indices[1]))
     # updating frame nr:
-    FrameNr += 12
+    FrameNr += 5
 
     #correcting the coordinate offsets:
     indices = indices - np.array((34,0,-34))
@@ -238,14 +252,18 @@ def updateVoxels():
     clusteredVoxelLists = splitClusteredVoxelCoords(indices,voxelLabels, 4)
 
     #make a colorHistogram for each cluster of voxels looking from camera 2:
-    clusterHistograms = [None,None,None,None]
-    for i,clusvoxlist in enumerate(clusteredVoxelLists):
-        uniqueImageCords = getUniqueImageCords(clusvoxlist, 2)
-        hist = cm.makeColorHistogram(uniqueImageCords, currentColorModelFrame)
-        clusterHistograms[i] = hist
+    clusterHistogramstwoviews = [[None,None,None,None],[None,None,None,None]]
+    for v in range(2):
+        for i,clusvoxlist in enumerate(clusteredVoxelLists):
+            uniqueImageCords = getUniqueImageCords(clusvoxlist, v + 2,30)
+            if v == 0:
+                hist = cm.makeColorHistogram(uniqueImageCords, currentColorModelFrame1)
+            if v == 1: 
+                hist = cm.makeColorHistogram(uniqueImageCords, currentColorModelFrame2)
+            clusterHistogramstwoviews[v][i] = hist
 
     #compare the clusterHistograms to the offline ones and assign each cluster to a single person:
-    personLabels = assignPersons2Clusters(clusterHistograms)
+    personLabels = assignPersons2Clusters(clusterHistogramstwoviews)
 
     #add the the cluster center to that persons list in personCenters
     for centroid, pers in zip(centroids, personLabels):
@@ -265,38 +283,74 @@ def updateVoxels():
     colorList2 = np.concatenate((np.concatenate((np.concatenate((colorLists[0],colorLists[1])),colorLists[2])),colorLists[3]))
 
 #------------------------------------------------------------------------------------------------------------------------------
-
     return voxelList2, colorList2
 
 #Newcode:
 
-def assignPersons2Clusters(clusterHistograms):
-    global personColorModels
+def assignPersons2Clusters(twoviewHists):
+    global personColorModelstwoviews
     personLabels = [None,None,None,None]
-    clusterAlreadyAssigned = [False, False, False, False]
 
-    for pNr,pmodel in enumerate(personColorModels):
-        
-        dist2Cluster = [None,None,None,None]
+    assignmentfromeachview = np.zeros((4,2),np.int64)
+    personsalreadychosen = [False, False, False, False]
 
-        for i,cHist in enumerate(clusterHistograms):
-            dist2Cluster[i] = cm.compareColorHistograms(pmodel, cHist)
-        
-        argsortedDist2Cluster = np.argsort(dist2Cluster)
-        for j in range(4):
-            indice = argsortedDist2Cluster[j]
-            if not clusterAlreadyAssigned[indice]:
-                personLabels[indice] = pNr
-                clusterAlreadyAssigned[indice] = True
+    for v, personColorModels in enumerate(personColorModelstwoviews):
+        dist2Person = [None,None,None,None]
+        for i,cHist in enumerate(twoviewHists[v]):
+            for j, pmodel in enumerate(personColorModels):
+                dist2Person[j] = cm.compareColorHistograms(pmodel, cHist)
+            argsortedDist2Cluster = np.argsort(dist2Person)
+            assignmentfromeachview[i,v] = argsortedDist2Cluster[0]
+
+    #if the person is the same on both views and that person is not taken:
+    for i in range(4):
+        if assignmentfromeachview[i,0] == assignmentfromeachview[i,1] and personsalreadychosen[assignmentfromeachview[i,0]] == False:
+            personLabels[i] = assignmentfromeachview[i,0]
+            personsalreadychosen[assignmentfromeachview[i,0]] = True
+
+    #if one of the persons in a view is taken and the other:
+    term = False     
+    while not term:
+        alreadytakencopy = personsalreadychosen.copy()  
+        for i in range(4):
+            if personsalreadychosen[assignmentfromeachview[i,0]] == False and personsalreadychosen[assignmentfromeachview[i,1]] == True:       
+                personLabels[i] = assignmentfromeachview[i,0]
+                personsalreadychosen[assignmentfromeachview[i,0]] = True
                 break
-    
+            if personsalreadychosen[assignmentfromeachview[i,0]] == True and personsalreadychosen[assignmentfromeachview[i,1]] == False:       
+                personLabels[i] = assignmentfromeachview[i,1]
+                personsalreadychosen[assignmentfromeachview[i,1]] = True
+                break
+
+        if alreadytakencopy == personsalreadychosen:
+            term = True
+
+
+    #fill the empty labels with the not yet chosen persons:
+    for i in range(4):
+        if personLabels[i] == None:
+            if personsalreadychosen[assignmentfromeachview[i,0]] == False:
+                personLabels[i] = assignmentfromeachview[i,0]
+                personsalreadychosen[assignmentfromeachview[i,0]] = True
+
+            elif personsalreadychosen[assignmentfromeachview[i,1]] == False:
+                personLabels[i] = assignmentfromeachview[i,1]
+                personsalreadychosen[assignmentfromeachview[i,1]] = True
+            else:
+                for j, pers in enumerate(personsalreadychosen):
+                    if pers == False: 
+                        personLabels[i] = j
+                        personsalreadychosen[j] = True
+                        break
+ 
     return personLabels
                 
 
 def loadPersonColorModels():
-    r = cv.FileStorage('data/PersonColorModels.xml', cv.FILE_STORAGE_READ)    
-    for i in range(4):
-        personColorModels[i] = r.getNode(f"ColorModelPerson{i}").mat().ravel()
+    r = cv.FileStorage('data/PersonColorModels.xml', cv.FILE_STORAGE_READ)
+    for v in range(2):    
+        for i in range(4):
+            personColorModelstwoviews[v][i] = r.getNode(f"ColorModelPerson{v}{i}").mat().ravel()
     r.release()
 
 
@@ -310,11 +364,11 @@ def splitClusteredVoxelCoords(voxelCords, voxelLabels, nrOfClusters):
     return ClusterLists
 
 
-def getUniqueImageCords(voxels, camNr):
+def getUniqueImageCords(voxels, camNr, threshold):
     global voxp_Cam2PixelTable
     imageCoords = set()
     for voxX,voxY,voxZ in voxels:
-        if (voxX,-1*voxZ,voxY,camNr) in voxp_Cam2PixelTable.keys():
+        if ((voxX,-1*voxZ,voxY,camNr) in voxp_Cam2PixelTable.keys()) and voxY > threshold:
             imageCoords.add(tuple(voxp_Cam2PixelTable[(voxX,-1*voxZ,voxY,camNr)]))
 
     return list(imageCoords)
@@ -327,6 +381,9 @@ def getUniqueImageCords(voxels, camNr):
 buildVoxelLookupTable()
 #--------------------------------------------------------------------------------------------------------------------------------
 #loadPersonColorModels()
+#FrameNr = 1200
 #initilizeVoxels()
 #while FrameNr < 10000:
+    #print(FrameNr)
     #updateVoxels()
+    

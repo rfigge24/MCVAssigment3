@@ -12,6 +12,8 @@ def clusterVoxels(voxels,nrOfClusters):
     # Apply KMeans
     ret,voxelLabels,centroids = cv.kmeans(voxels2d,nrOfClusters,None,criteria,10,flags)
 
+
+
     return  voxelLabels,centroids
 
 
