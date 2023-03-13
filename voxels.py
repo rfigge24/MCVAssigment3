@@ -7,13 +7,16 @@ import cluster
 import colorModel as cm
 
 prevImg = [None,None,None,None]
-FrameNr = 0                             #goes in steps of 12 frames each update
+FrameNr = 0
+personCenters = [[],[],[],[]]                                   #TODO: save the clustercenters that correspond to each person in this array
+personColorModels = [None,None,None,None]                       #TODO: load the offline person colormodels into this list for comparison use
+
+
 
 #imgpoint,c to voxelcoord lookup table:
 imgp_Cam2VoxelTable = defaultdict(list)
 #Voxpt, c to pixel lookup table:
 voxp_Cam2PixelTable = dict()
-
 # contains for each voxel if it is forground for each cam:
 voxelForgroundTable = np.zeros((170,235,100,4))                                                     
 
@@ -61,7 +64,7 @@ def buildVoxelLookupTable():
     print("generation done!")
 
 
-def initilizeVoxels():
+def initilizeVoxels(offline = False):                          #in offline mode it returns the color histograms for each cluster
     """
     This function will setup the voxel grid according to the first frame only.
     for each camera the background of the frame gets subtracted and then if a pixel is forground each voxel,
@@ -117,7 +120,7 @@ def initilizeVoxels():
     #create list of voxel coords lists corresponding to the cluster they belong to:
     voxels0, voxels1, voxels2, voxels3 = splitClusteredVoxelCoords(indices,voxelLabels, 4)
 
-    #TODO: per cluser aan voxels een color histogram maken, dan per cluster een persoon toewijzen door de offline color models te gebruiken.
+    #TODO: per cluser aan voxels een color histogram maken, dan per cluster een persoon toewijzen door de offline color models te gebruiken. als offline == True dan histograms returnen
 
     # update frame nr:
     FrameNr += 12
@@ -188,7 +191,14 @@ def updateVoxels():
 
     return indices
 
-#New colormodel code:
+#Newcode:
+
+def loadPersonColorModels():
+    r = cv.FileStorage('data/PersonColorModels.xml', cv.FILE_STORAGE_READ)    
+    for i in range(4):
+        personColorModels[i] = r.getNode(f"ColorModelPerson{i}").mat()
+    r.release()
+
 
 def splitClusteredVoxelCoords(voxelCords, voxelLabels, nrOfClusters):
     ClusterLists = []
@@ -215,5 +225,4 @@ def getUniqueImageCoords(voxels, camNr):
 #------------------------------Construction of the Lookup table when script is ran or imported:----------------------------------
 buildVoxelLookupTable()
 #--------------------------------------------------------------------------------------------------------------------------------
-initilizeVoxels()
 

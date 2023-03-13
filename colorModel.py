@@ -4,21 +4,19 @@ import math
 
 def makeColorHistogram(imgCords,frame):
     #initilizing the histogram with its bins:
-    histogram = np.zeros(36,np.float32)
-    
+    histogram = np.zeros(36,np.float32)  
     #change the colorspace to HSV:
     hsvImg = cv.cvtColor(frame, cv.COLOR_BGR2HSV)
-
     #fill the bins:
     for imgX,imgY in imgCords:
         color = hsvImg[imgY,imgX]
-        histogram[math.floor(color[0]/36)] += 1
-    
+        histogram[math.floor(color[0]/36)] += 1   
     #normalizing the histogram:
     totalsum = np.sum(histogram)
     histogram = histogram / totalsum
 
     return histogram
+
 
 def compareColorHistograms(hist1, hist2):
     #uses chi-squared distance:
