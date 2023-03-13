@@ -19,14 +19,11 @@ def generate_grid(width, depth):
 
 
 def set_voxel_positions(width, height, depth):
-    data = v.initilizeVoxels()
-    colors = np.full_like(data,255)
-    return data, colors
+    v.loadPersonColorModels()
+    return v.initilizeVoxels()
 
 def set_voxel_positions_update():
-    data = v.updateVoxels()
-    colors = np.full_like(data,255)
-    return data,colors
+    return v.updateVoxels()
 
 
 

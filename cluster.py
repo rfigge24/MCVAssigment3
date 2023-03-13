@@ -6,9 +6,9 @@ def clusterVoxels(voxels,nrOfClusters):
     #getting rid of the height axis:
     voxels2d = voxels[:,[0,2]]
     # the convergence criteria
-    criteria = (cv.TERM_CRITERIA_EPS + cv.TERM_CRITERIA_MAX_ITER, 10, 1.0)
+    criteria = (cv.TERM_CRITERIA_EPS + cv.TERM_CRITERIA_MAX_ITER, 20, 1.0)
     # Set flags (Just to avoid line break in the code)
-    flags = cv.KMEANS_RANDOM_CENTERS
+    flags = cv.KMEANS_PP_CENTERS
     # Apply KMeans
     ret,voxelLabels,centroids = cv.kmeans(voxels2d,nrOfClusters,None,criteria,10,flags)
 

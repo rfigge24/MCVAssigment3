@@ -10,7 +10,7 @@ def makeColorHistogram(imgCords,frame):
     #fill the bins:
     for imgX,imgY in imgCords:
         color = hsvImg[imgY,imgX]
-        histogram[math.floor(color[0]/36)] += 1   
+        histogram[math.floor(color[0]/5)] += 1   
     #normalizing the histogram:
     totalsum = np.sum(histogram)
     histogram = histogram / totalsum
@@ -22,6 +22,6 @@ def compareColorHistograms(hist1, hist2):
     #uses chi-squared distance:
     distance = 0
     for h1,h2 in zip(hist1,hist2):
-        distance += (h1 - h2)**2 / (h1 + h2) 
-
+        if not (h1+h2) == 0:
+            distance += (h1 - h2)**2 / (h1 + h2)
     return distance

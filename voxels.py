@@ -8,17 +8,19 @@ import colorModel as cm
 
 prevImg = [None,None,None,None]
 FrameNr = 0
-personCenters = [[],[],[],[]]                                   #TODO: save the clustercenters that correspond to each person in this array
-personColorModels = [None,None,None,None]                       #TODO: load the offline person colormodels into this list for comparison use
+
+personCenters = [[],[],[],[]]                                                                       #TODO: save the clustercenters that correspond to each person in this array
+personColorModels = [None,None,None,None]                                                           #TODO: load the offline person colormodels into this list for comparison use
+currentColorModelFrame = None                                                                       #TODO: save the current frame of the camera where the color model needs to be made of
 
 
 
 #imgpoint,c to voxelcoord lookup table:
-imgp_Cam2VoxelTable = defaultdict(list)
+imgp_Cam2VoxelTable = defaultdict(list)                     #cams are 1-4
 #Voxpt, c to pixel lookup table:
-voxp_Cam2PixelTable = dict()
+voxp_Cam2PixelTable = dict()                                #cams are 1-4
 # contains for each voxel if it is forground for each cam:
-voxelForgroundTable = np.zeros((170,235,100,4))                                                     
+voxelForgroundTable = np.zeros((170,235,100,4))             #cams are 0-3                                             
 
 
 def buildVoxelLookupTable():
@@ -49,7 +51,7 @@ def buildVoxelLookupTable():
         rvecs = r.getNode('CameraRotationVecs').mat()
         mtx = r.getNode('CameraIntrinsicMatrix').mat()
         dist = r.getNode('DistortionCoeffs').mat()
-
+        r.release()
         # project the voxel
         Imgpts, jac = cv.projectPoints(np.float32(voxelCenterWorldCoords), rvecs, tvecs, mtx, dist)
         # reshape Imgpts to shape (x,2) and rounding pixel coords to nearest integer:
@@ -84,7 +86,10 @@ def initilizeVoxels(offline = False):                          #in offline mode 
         vid = cv.VideoCapture(path)
         vid.set(cv.CAP_PROP_POS_FRAMES, FrameNr)
         succes, img = vid.read()
-
+#-------------------------------------------------------------------------------------------------------------
+        if succes and c == 2:
+            currentColorModelFrame = img.copy()
+#---------------------------------------------------------------------------------------------------------------
         if succes:
             model = None
             if c == 1:
@@ -105,7 +110,7 @@ def initilizeVoxels(offline = False):                          #in offline mode 
                         for voxCord in imgp_Cam2VoxelTable[(x,y,c)]:
                             Vx, Vy, Vz = voxCord
                             voxelForgroundTable[Vx,Vy,Vz,c-1] = 1
-
+        vid.release()
     # get indices of voxels that are on in all cameras:
     allOn = np.array([1,1,1,1])
     indices = np.where((voxelForgroundTable == allOn).all(axis=3))
@@ -113,19 +118,49 @@ def initilizeVoxels(offline = False):                          #in offline mode 
 
     #correcting the coordinate offsets:
     indices = indices - np.array((34,0,-34))
-
+#--------------------------------------------------------------------------------------------------------------------------
     #cluster the voxels:
     voxelLabels, centroids = cluster.clusterVoxels(np.float32(indices), 4)
 
     #create list of voxel coords lists corresponding to the cluster they belong to:
-    voxels0, voxels1, voxels2, voxels3 = splitClusteredVoxelCoords(indices,voxelLabels, 4)
+    clusteredVoxelLists = splitClusteredVoxelCoords(indices,voxelLabels, 4)
 
-    #TODO: per cluser aan voxels een color histogram maken, dan per cluster een persoon toewijzen door de offline color models te gebruiken. als offline == True dan histograms returnen
+    #make a colorHistogram for each cluster of voxels looking from camera 2:
+    clusterHistograms = [None,None,None,None]
+    for i,clusvoxlist in enumerate(clusteredVoxelLists):
+        uniqueImageCords = getUniqueImageCords(clusvoxlist, 2)
+        hist = cm.makeColorHistogram(uniqueImageCords, currentColorModelFrame)
+        clusterHistograms[i] = hist
+    
+    #if offline mode return the histograms:
+    if offline:
+        return clusterHistograms
 
+    #compare the clusterHistograms to the offline ones and assign each cluster to a single person:
+    personLabels = assignPersons2Clusters(clusterHistograms)
+
+    #add the the cluster center to that persons list in personCenters
+    for centroid, pers in zip(centroids, personLabels):
+        personCenters[pers].append(centroid)
+    
+    #order the clusteredvoxellists in order of the persons they are assigned to
+    #and make a list of colors for the voxels corresponding to the assigned person:
+    voxelLists = [None,None,None,None]
+    colorLists = [None,None,None,None]
+    colors = [[255,255,255],[255,0,0],[0,255,0],[0,0,255]] 
+    for voxelList, persNr in zip(clusteredVoxelLists, personLabels):
+        voxelLists[persNr] = np.array(voxelList)
+        colorLists[persNr] = np.tile(colors[persNr],(len(voxelList),1))
+    
+    #concatenate all lists:
+    voxelList2 = np.concatenate((np.concatenate((np.concatenate((voxelLists[0],voxelLists[1])),voxelLists[2])),voxelLists[3]))
+    colorList2 = np.concatenate((np.concatenate((np.concatenate((colorLists[0],colorLists[1])),colorLists[2])),colorLists[3]))
+
+#------------------------------------------------------------------------------------------------------------------------------
     # update frame nr:
     FrameNr += 12
 
-    return indices
+    return voxelList2, colorList2
 
 
 def updateVoxels():
@@ -147,6 +182,11 @@ def updateVoxels():
         vid = cv.VideoCapture(path)
         vid.set(cv.CAP_PROP_POS_FRAMES, FrameNr)
         succes, img = vid.read()
+
+        #-------------------------------------------------------------------------------------------------------------
+        if succes and c == 2:
+            currentColorModelFrame = img.copy()
+        #---------------------------------------------------------------------------------------------------------------
 
         if succes:
             model = None
@@ -178,6 +218,7 @@ def updateVoxels():
                     for voxelCord in imgp_Cam2VoxelTable[Ix,Iy,c]:
                         Vx,Vy,Vz = voxelCord
                         voxelForgroundTable[Vx,Vy,Vz,c-1] = 0
+        vid.release()
 
     # getting all the voxel coords that are on:
     allOn = np.array([1,1,1,1])
@@ -189,14 +230,73 @@ def updateVoxels():
     #correcting the coordinate offsets:
     indices = indices - np.array((34,0,-34))
 
-    return indices
+    #--------------------------------------------------------------------------------------------------------------------------
+    #cluster the voxels:
+    voxelLabels, centroids = cluster.clusterVoxels(np.float32(indices), 4)
+
+    #create list of voxel coords lists corresponding to the cluster they belong to:
+    clusteredVoxelLists = splitClusteredVoxelCoords(indices,voxelLabels, 4)
+
+    #make a colorHistogram for each cluster of voxels looking from camera 2:
+    clusterHistograms = [None,None,None,None]
+    for i,clusvoxlist in enumerate(clusteredVoxelLists):
+        uniqueImageCords = getUniqueImageCords(clusvoxlist, 2)
+        hist = cm.makeColorHistogram(uniqueImageCords, currentColorModelFrame)
+        clusterHistograms[i] = hist
+
+    #compare the clusterHistograms to the offline ones and assign each cluster to a single person:
+    personLabels = assignPersons2Clusters(clusterHistograms)
+
+    #add the the cluster center to that persons list in personCenters
+    for centroid, pers in zip(centroids, personLabels):
+        personCenters[pers].append(centroid)
+    
+    #order the clusteredvoxellists in order of the persons they are assigned to
+    #and make a list of colors for the voxels corresponding to the assigned person:
+    voxelLists = [None,None,None,None]
+    colorLists = [None,None,None,None]
+    colors = [[255,255,255],[255,0,0],[0,255,0],[0,0,255]] 
+    for voxelList, persNr in zip(clusteredVoxelLists, personLabels):
+        voxelLists[persNr] = np.array(voxelList)
+        colorLists[persNr] = np.tile(colors[persNr],(len(voxelList),1))
+    
+    #concatenate all lists:
+    voxelList2 = np.concatenate((np.concatenate((np.concatenate((voxelLists[0],voxelLists[1])),voxelLists[2])),voxelLists[3]))
+    colorList2 = np.concatenate((np.concatenate((np.concatenate((colorLists[0],colorLists[1])),colorLists[2])),colorLists[3]))
+
+#------------------------------------------------------------------------------------------------------------------------------
+
+    return voxelList2, colorList2
 
 #Newcode:
+
+def assignPersons2Clusters(clusterHistograms):
+    global personColorModels
+    personLabels = [None,None,None,None]
+    clusterAlreadyAssigned = [False, False, False, False]
+
+    for pNr,pmodel in enumerate(personColorModels):
+        
+        dist2Cluster = [None,None,None,None]
+
+        for i,cHist in enumerate(clusterHistograms):
+            dist2Cluster[i] = cm.compareColorHistograms(pmodel, cHist)
+        
+        argsortedDist2Cluster = np.argsort(dist2Cluster)
+        for j in range(4):
+            indice = argsortedDist2Cluster[j]
+            if not clusterAlreadyAssigned[indice]:
+                personLabels[indice] = pNr
+                clusterAlreadyAssigned[indice] = True
+                break
+    
+    return personLabels
+                
 
 def loadPersonColorModels():
     r = cv.FileStorage('data/PersonColorModels.xml', cv.FILE_STORAGE_READ)    
     for i in range(4):
-        personColorModels[i] = r.getNode(f"ColorModelPerson{i}").mat()
+        personColorModels[i] = r.getNode(f"ColorModelPerson{i}").mat().ravel()
     r.release()
 
 
@@ -209,14 +309,15 @@ def splitClusteredVoxelCoords(voxelCords, voxelLabels, nrOfClusters):
     
     return ClusterLists
 
-def getUniqueImageCoords(voxels, camNr):
-    global voxp_Cam2PixelTable
 
+def getUniqueImageCords(voxels, camNr):
+    global voxp_Cam2PixelTable
     imageCoords = set()
     for voxX,voxY,voxZ in voxels:
-        imageCoords.add(voxp_Cam2PixelTable[(voxX,voxY,voxZ,camNr)])
+        if (voxX,-1*voxZ,voxY,camNr) in voxp_Cam2PixelTable.keys():
+            imageCoords.add(tuple(voxp_Cam2PixelTable[(voxX,-1*voxZ,voxY,camNr)]))
 
-    return imageCoords
+    return list(imageCoords)
 
 
 
@@ -225,4 +326,7 @@ def getUniqueImageCoords(voxels, camNr):
 #------------------------------Construction of the Lookup table when script is ran or imported:----------------------------------
 buildVoxelLookupTable()
 #--------------------------------------------------------------------------------------------------------------------------------
-
+#loadPersonColorModels()
+#initilizeVoxels()
+#while FrameNr < 10000:
+    #updateVoxels()
