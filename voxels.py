@@ -124,8 +124,8 @@ def initilizeVoxels(offline = False):                          #in offline mode 
     indices = indices - np.array((34,0,-34))
 #--------------------------------------------------------------------------------------------------------------------------
     #cluster the voxels:
-    #cv.imshow('cam2', currentColorModelFrame1)
-    #cv.imshow('cam3', currentColorModelFrame2)
+    cv.imshow('cam2', currentColorModelFrame1)
+    cv.imshow('cam3', currentColorModelFrame2)
     voxelLabels, centroids = cluster.clusterVoxels(np.float32(indices), 4)
 
     #create list of voxel coords lists corresponding to the cluster they belong to:
@@ -301,47 +301,35 @@ def assignPersons2Clusters(twoviewHists):
                 dist2Person[j] = cm.compareColorHistograms(pmodel, cHist)
             argsortedDist2Cluster = np.argsort(dist2Person)
             assignmentfromeachview[i,v] = argsortedDist2Cluster[0]
-
-    #if the person is the same on both views and that person is not taken:
-    for i in range(4):
-        if assignmentfromeachview[i,0] == assignmentfromeachview[i,1] and personsalreadychosen[assignmentfromeachview[i,0]] == False:
-            personLabels[i] = assignmentfromeachview[i,0]
-            personsalreadychosen[assignmentfromeachview[i,0]] = True
-
-    #if one of the persons in a view is taken and the other:
-    term = False     
-    while not term:
-        alreadytakencopy = personsalreadychosen.copy()  
-        for i in range(4):
-            if personsalreadychosen[assignmentfromeachview[i,0]] == False and personsalreadychosen[assignmentfromeachview[i,1]] == True:       
-                personLabels[i] = assignmentfromeachview[i,0]
-                personsalreadychosen[assignmentfromeachview[i,0]] = True
-                break
-            if personsalreadychosen[assignmentfromeachview[i,0]] == True and personsalreadychosen[assignmentfromeachview[i,1]] == False:       
-                personLabels[i] = assignmentfromeachview[i,1]
-                personsalreadychosen[assignmentfromeachview[i,1]] = True
-                break
-
-        if alreadytakencopy == personsalreadychosen:
-            term = True
-
-
-    #fill the empty labels with the not yet chosen persons:
+    print(assignmentfromeachview)
+    for p in range(4):
+        p_predicted_clusters_view1 = np.where(assignmentfromeachview[:,0] == p)
+        if p_predicted_clusters_view1[0].shape[0] == 1:
+            personLabels[p_predicted_clusters_view1[0][0]] = p
+            personsalreadychosen[p] = True
+        
+        elif p_predicted_clusters_view1[0].shape[0] > 1:
+            p_predicted_clusters_bothviews = np.where(assignmentfromeachview[p_predicted_clusters_view1[0],1] == p)
+            if p_predicted_clusters_bothviews[0].shape[0] > 0:
+                personLabels[p_predicted_clusters_view1[0][p_predicted_clusters_bothviews[0][0]]] = p
+                personsalreadychosen[p] = True
+            else:
+                personLabels[p_predicted_clusters_view1[0][0]] = p
+                personsalreadychosen[p] = True
+    
     for i in range(4):
         if personLabels[i] == None:
-            if personsalreadychosen[assignmentfromeachview[i,0]] == False:
-                personLabels[i] = assignmentfromeachview[i,0]
-                personsalreadychosen[assignmentfromeachview[i,0]] = True
-
-            elif personsalreadychosen[assignmentfromeachview[i,1]] == False:
-                personLabels[i] = assignmentfromeachview[i,1]
-                personsalreadychosen[assignmentfromeachview[i,1]] = True
+            if personsalreadychosen[assignmentfromeachview[i][1]] == False:
+                personLabels[i] = assignmentfromeachview[i][1]
+                personsalreadychosen[assignmentfromeachview[i][1]] = True
             else:
-                for j, pers in enumerate(personsalreadychosen):
-                    if pers == False: 
+                for j in range(4):
+                    if personsalreadychosen[j] == False:
                         personLabels[i] = j
                         personsalreadychosen[j] = True
                         break
+
+
  
     return personLabels
                 
