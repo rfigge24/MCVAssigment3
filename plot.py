@@ -8,6 +8,6 @@ def plotPersonPaths(personcenters):
         color = [0,0,0]
         if i >= 0:
             color[i] = 1
-        plt.scatter(person[:,0],person[:,1], c=[color])
+        plt.scatter(person[:][0],person[:][1], c=[color])
     plt.xlabel('X'),plt.ylabel('Y')
     plt.show()
