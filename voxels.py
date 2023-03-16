@@ -128,8 +128,6 @@ def initilizeVoxels(offline = False):                          #in offline mode 
     indices = indices - np.array((34,0,-34))
 #--------------------------------------------------------------------------------------------------------------------------
     #cluster the voxels:
-    cv.imshow('cam2', currentColorModelFrame1)
-    cv.imshow('cam3', currentColorModelFrame2)
     voxelLabels, centroids = cluster.clusterVoxels(np.float32(indices), 4)
 
     #create list of voxel coords lists corresponding to the cluster they belong to:
@@ -305,7 +303,8 @@ def assignPersons2Clusters(twoviewHists):
                 dist2Person[j] = cm.compareColorHistograms(pmodel, cHist)
             argsortedDist2Cluster = np.argsort(dist2Person)
             assignmentfromeachview[i,v] = argsortedDist2Cluster[0]
-    print(assignmentfromeachview)
+
+
     for p in range(4):
         p_predicted_clusters_view1 = np.where(assignmentfromeachview[:,0] == p)
         if p_predicted_clusters_view1[0].shape[0] == 1:
