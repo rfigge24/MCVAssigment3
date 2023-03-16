@@ -6,8 +6,10 @@ import os
 import cluster
 import colorModel as cm
 
+
 prevImg = [None,None,None,None]
 FrameNr = 0
+MaxFrameNr = None
 
 personCenters = [[],[],[],[]]                                                                       #TODO: save the clustercenters that correspond to each person in this array
 personColorModelstwoviews = [[None,None,None,None],[None,None,None,None]]                                                          #TODO: load the offline person colormodels into this list for comparison use
@@ -75,6 +77,7 @@ def initilizeVoxels(offline = False):                          #in offline mode 
 
     All coordinates of voxels that are on in all cameras will get added to a list that will be returned.
     """
+    global MaxFrameNr
     global FrameNr
     global prevImg
     global voxelForgroundTable
@@ -86,6 +89,7 @@ def initilizeVoxels(offline = False):                          #in offline mode 
     for c in range(1,5):
         path = os.path.abspath(f'data/cam{c}/video.avi')
         vid = cv.VideoCapture(path)
+        MaxFrameNr = vid.get(cv.CAP_PROP_FRAME_COUNT)
         vid.set(cv.CAP_PROP_POS_FRAMES, FrameNr)
         succes, img = vid.read()
 #-------------------------------------------------------------------------------------------------------------
@@ -157,7 +161,7 @@ def initilizeVoxels(offline = False):                          #in offline mode 
     #and make a list of colors for the voxels corresponding to the assigned person:
     voxelLists = [None,None,None,None]
     colorLists = [None,None,None,None]
-    colors = [[255,255,255],[255,0,0],[0,255,0],[0,0,255]] 
+    colors = [[0,0,0],[255,0,0],[0,255,0],[0,0,255]] 
     for voxelList, persNr in zip(clusteredVoxelLists, personLabels):
         voxelLists[persNr] = np.array(voxelList)
         colorLists[persNr] = np.tile(colors[persNr],(len(voxelList),1))
@@ -273,7 +277,7 @@ def updateVoxels():
     #and make a list of colors for the voxels corresponding to the assigned person:
     voxelLists = [None,None,None,None]
     colorLists = [None,None,None,None]
-    colors = [[255,255,255],[255,0,0],[0,255,0],[0,0,255]] 
+    colors = [[0,0,0],[255,0,0],[0,255,0],[0,0,255]] 
     for voxelList, persNr in zip(clusteredVoxelLists, personLabels):
         voxelLists[persNr] = np.array(voxelList)
         colorLists[persNr] = np.tile(colors[persNr],(len(voxelList),1))

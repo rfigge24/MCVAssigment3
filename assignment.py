@@ -1,8 +1,8 @@
 import glm
-import random
 import numpy as np
 import cv2 as cv
 import voxels as v
+import plot
 
 block_size = 1.0
 
@@ -23,7 +23,8 @@ def set_voxel_positions(width, height, depth):
     return v.initilizeVoxels()
 
 def set_voxel_positions_update():
-    print(v.FrameNr)
+    if v.MaxFrameNr -5 < v.FrameNr <= v.MaxFrameNr:
+        plot.plotPersonPaths(v.personCenters)
     return v.updateVoxels()
 
 
