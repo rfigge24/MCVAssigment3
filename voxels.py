@@ -170,7 +170,7 @@ def initilizeVoxels(offline = False):                          #in offline mode 
 
 #------------------------------------------------------------------------------------------------------------------------------
     # update frame nr:
-    FrameNr += 5
+    FrameNr += 1
 
     return voxelList2, colorList2
 
@@ -240,8 +240,6 @@ def updateVoxels():
     allOn = np.array([1,1,1,1])
     indices = np.where((voxelForgroundTable == allOn).all(axis=3))
     indices = np.column_stack((indices[0], indices[2], -1 * indices[1]))
-    # updating frame nr:
-    FrameNr += 5
 
     #correcting the coordinate offsets:
     indices = indices - np.array((34,0,-34))
@@ -285,7 +283,13 @@ def updateVoxels():
     colorList2 = np.concatenate((np.concatenate((np.concatenate((colorLists[0],colorLists[1])),colorLists[2])),colorLists[3]))
 
 #------------------------------------------------------------------------------------------------------------------------------
+
+    # updating frame nr:
+    FrameNr += 1
+    
     return voxelList2, colorList2
+
+
 
 #Newcode:
 

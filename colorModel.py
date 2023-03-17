@@ -14,7 +14,8 @@ def makeColorHistogram(imgCords,frame):
             histogram[math.floor(color[0]/5)] += 1   
     #normalizing the histogram:
     totalsum = np.sum(histogram)
-    histogram = histogram / totalsum
+    if not totalsum == 0:
+        histogram = histogram / totalsum
 
     return histogram
 
