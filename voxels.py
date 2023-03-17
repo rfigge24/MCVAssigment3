@@ -40,7 +40,7 @@ def buildVoxelLookupTable():
     # get thet voxelCoords of the complete grid:
     voxelGrid = np.zeros((170,235,100))  
     voxelCoords = np.column_stack(np.where(voxelGrid == 0))
-    # times 20 because voxels have size 20mm*20mm*20mm, plus 10 to get the voxel center:
+    # times 20 because voxels have size 20mm*20mm*20mm, plus 10mm to get the voxel center and - 700mm -700mm for the offset in x and y:
     voxelCenterWorldCoords =20 * voxelCoords + np.array((-690,-690,10))
 
     # reset the voxelgrid:              
@@ -137,7 +137,7 @@ def initilizeVoxels(offline = False):                          #in offline mode 
     clusterHistogramstwoviews = [[None,None,None,None],[None,None,None,None]]
     for v in range(2):
         for i,clusvoxlist in enumerate(clusteredVoxelLists):
-            uniqueImageCords = getUniqueImageCords(clusvoxlist, v + 2, 30)
+            uniqueImageCords = getUniqueImageCords(clusvoxlist + np.array((34,0,-34)), v + 2,30)
             if v == 0:
                 hist = cm.makeColorHistogram(uniqueImageCords, currentColorModelFrame1)
             if v == 1: 
@@ -170,7 +170,7 @@ def initilizeVoxels(offline = False):                          #in offline mode 
 
 #------------------------------------------------------------------------------------------------------------------------------
     # update frame nr:
-    FrameNr += 1
+    FrameNr += 10
 
     return voxelList2, colorList2
 
@@ -255,7 +255,7 @@ def updateVoxels():
     clusterHistogramstwoviews = [[None,None,None,None],[None,None,None,None]]
     for v in range(2):
         for i,clusvoxlist in enumerate(clusteredVoxelLists):
-            uniqueImageCords = getUniqueImageCords(clusvoxlist, v + 2,30)
+            uniqueImageCords = getUniqueImageCords(clusvoxlist + np.array((34,0,-34)), v + 2,30)
             if v == 0:
                 hist = cm.makeColorHistogram(uniqueImageCords, currentColorModelFrame1)
             if v == 1: 
@@ -285,7 +285,7 @@ def updateVoxels():
 #------------------------------------------------------------------------------------------------------------------------------
 
     # updating frame nr:
-    FrameNr += 1
+    FrameNr += 10
     
     return voxelList2, colorList2
 

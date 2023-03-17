@@ -9,6 +9,9 @@ def plotPersonPaths(personcenters):
         color = [0,0,0]
         if i >= 0:
             color[i] = 1
-        plt.scatter(person[:,0],person[:,1], c=[color])
+        #-1 * to mirror the y axis back
+        plt.scatter(person[:,0],-1 * person[:,1], c=[color])
     plt.xlabel('X'),plt.ylabel('Y')
+    plt.xlim([-100,200])
+    plt.ylim([-100,200])
     plt.show()

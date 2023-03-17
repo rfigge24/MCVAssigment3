@@ -23,7 +23,7 @@ def set_voxel_positions(width, height, depth):
     return v.initilizeVoxels()
 
 def set_voxel_positions_update():
-    if v.MaxFrameNr -1 < v.FrameNr <= v.MaxFrameNr:
+    if v.MaxFrameNr -10 < v.FrameNr <= v.MaxFrameNr:
         plot.plotPersonPaths(v.personCenters)
     return v.updateVoxels()
 
