@@ -28,7 +28,8 @@ voxelForgroundTable = np.zeros((170,235,100,4))             #cams are 0-3
 
 def buildVoxelLookupTable():
     """
-    This function builds the voxel table, a dictionary that maps (imgX,imgY,Cameranr) --> list of (voxX,voxY,voxZ)
+    This function builds the voxel tables, a dictionary that maps (imgX,imgY,CameraNr) --> list of (voxX,voxY,voxZ),
+    and one that maps (voxX,voxY,VoxZ,CameraNr) --> (imgX,imgY)
     Made such that we dont have to loop over all voxels again when there is a frame update.
     """
 
@@ -92,7 +93,7 @@ def initilizeVoxels(offline = False):                          #in offline mode 
         MaxFrameNr = vid.get(cv.CAP_PROP_FRAME_COUNT)
         vid.set(cv.CAP_PROP_POS_FRAMES, FrameNr)
         succes, img = vid.read()
-#-------------------------------------------------------------------------------------------------------------
+#---------------------------------------------Added Code:-------------------------------------------------------
         if succes and c == 2:
             currentColorModelFrame1 = img.copy()
         if succes and c == 3:
@@ -126,7 +127,7 @@ def initilizeVoxels(offline = False):                          #in offline mode 
 
     #correcting the coordinate offsets:
     indices = indices - np.array((34,0,-34))
-#--------------------------------------------------------------------------------------------------------------------------
+#---------------------------------------------Added Code:-------------------------------------------------------
     #cluster the voxels:
     voxelLabels, centroids = cluster.clusterVoxels(np.float32(indices), 4)
 
@@ -137,6 +138,7 @@ def initilizeVoxels(offline = False):                          #in offline mode 
     clusterHistogramstwoviews = [[None,None,None,None],[None,None,None,None]]
     for v in range(2):
         for i,clusvoxlist in enumerate(clusteredVoxelLists):
+            #getting the camera pixels that the cluster voxels map to:
             uniqueImageCords = getUniqueImageCords(clusvoxlist + np.array((34,0,-34)), v + 2,30)
             if v == 0:
                 hist = cm.makeColorHistogram(uniqueImageCords, currentColorModelFrame1)
@@ -170,7 +172,7 @@ def initilizeVoxels(offline = False):                          #in offline mode 
 
 #------------------------------------------------------------------------------------------------------------------------------
     # update frame nr:
-    FrameNr += 10
+    FrameNr += 1
 
     return voxelList2, colorList2
 
@@ -255,6 +257,7 @@ def updateVoxels():
     clusterHistogramstwoviews = [[None,None,None,None],[None,None,None,None]]
     for v in range(2):
         for i,clusvoxlist in enumerate(clusteredVoxelLists):
+            #getting the camera pixels that the cluster voxels map to:
             uniqueImageCords = getUniqueImageCords(clusvoxlist + np.array((34,0,-34)), v + 2,30)
             if v == 0:
                 hist = cm.makeColorHistogram(uniqueImageCords, currentColorModelFrame1)
@@ -285,15 +288,30 @@ def updateVoxels():
 #------------------------------------------------------------------------------------------------------------------------------
 
     # updating frame nr:
-    FrameNr += 10
+    FrameNr += 1
     
     return voxelList2, colorList2
 
 
 
-#Newcode:
+#New Functions:
 
 def assignPersons2Clusters(twoviewHists):
+    """
+    This function assigns a person index to each of the clusters. 
+    It does this by first getting a predicted person index for each cluster and for each of the two views.
+
+    It first loops over all person indices and checks the amount of clusters that have predicted this person.
+    If there is just one, this cluster will get assigned this person.
+    If there are more then one, it checks if there is atleast one that has the same prediction on the second view.
+        If so, it will assign the person to the first one of those.
+        If not, it will assign the person to the first that had the person predicted on view 1.
+    
+    The last loop is to assign the persons that were not assigned just yet.
+    If the predicted person of an unassigned cluster on view 2 hasen't been assigned to any cluster then this person is chosen.
+    Otherwise the first unassigned person is assigned to the cluster.
+    """
+
     global personColorModelstwoviews
     personLabels = [None,None,None,None]
 
@@ -342,6 +360,10 @@ def assignPersons2Clusters(twoviewHists):
                 
 
 def loadPersonColorModels():
+    """
+    This function gets the personmodels that were optained in the offline part. 
+    It stores the histograms in the Global assigned for it.
+    """
     r = cv.FileStorage('data/PersonColorModels.xml', cv.FILE_STORAGE_READ)
     for v in range(2):    
         for i in range(4):
@@ -350,8 +372,12 @@ def loadPersonColorModels():
 
 
 def splitClusteredVoxelCoords(voxelCords, voxelLabels, nrOfClusters):
+    """
+    This function splits the list of voxelcoords into a list with nrOfClusters lists of voxel coordinates. 
+    This way we have the voxels that correspond to a certain cluster seperated.
+    """
     ClusterLists = []
-    for i in range(nrOfClusters):
+    for _ in range(nrOfClusters):
         ClusterLists.append([])
     for voxC, label in zip(voxelCords,voxelLabels.ravel()):
         ClusterLists[label].append(voxC)
@@ -359,7 +385,10 @@ def splitClusteredVoxelCoords(voxelCords, voxelLabels, nrOfClusters):
     return ClusterLists
 
 
-def getUniqueImageCords(voxels, camNr, threshold):
+def getUniqueImageCords(voxels, camNr, threshold):     #threshold 30 means that we only look at voxels that are higher then 60 cm
+    """
+    This function will return a list of unique image coords that correspond to the given voxel coordinates.
+    """
     global voxp_Cam2PixelTable
     imageCoords = set()
     for voxX,voxY,voxZ in voxels:

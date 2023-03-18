@@ -3,6 +3,9 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 def clusterVoxels(voxels,nrOfClusters):
+    """
+    This function takes care of the kmeans clustering of the voxels by only looking at x and y and discarding variabilty in height
+    """
     #getting rid of the height axis:
     voxels2d = voxels[:,[0,2]]
     # the convergence criteria
@@ -32,6 +35,8 @@ def clusterVoxels(voxels,nrOfClusters):
 
 
 """
+#This code can be pasted above the return to visualize the clustering!
+
 # visualization:
     A = voxels2d[voxelLabels.ravel()==0]
     B = voxels2d[voxelLabels.ravel()==1]

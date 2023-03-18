@@ -1,9 +1,12 @@
 import numpy as np
 import cv2 as cv
-import math
 import matplotlib.pyplot as plt
 
 def makeColorHistogram(imgCords,frame):
+    """
+    This function creates normalized histograms from a list of image coordinates and an image.
+    These histograms are based on the full hue range.
+    """
     
     hsvImg = cv.cvtColor(frame, cv.COLOR_BGR2HSV)
     mask = np.zeros(frame.shape[:2],np.uint8)
@@ -19,6 +22,8 @@ def makeColorHistogram(imgCords,frame):
     if sum > 0:
         hist = hist / sum
 
+    #This code can be used to show the histogram:
+    
     #plt.plot(hist,color = 'b')
     #plt.xlim([0,256])
     #plt.ylim([0,1])
@@ -28,5 +33,9 @@ def makeColorHistogram(imgCords,frame):
 
 
 def compareColorHistograms(hist1, hist2):
+    """
+    This function gets the Chi-Squared distance of two histograms.
+    """
+
     distance = cv.compareHist(hist1,hist2,cv.HISTCMP_CHISQR)
     return distance
